@@ -1,0 +1,154 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%@ page import="java.sql.*"%>
+<%@ page import="lib.DB"%>
+<%@ page import="java.lang.Math"%>
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Member List</title>
+<style>
+	.pagination a {
+		text-decoration: none;
+		padding: 5px;
+		border: 1px solid #ccc;
+		margin: 0 2px;
+	}
+	.pagination a.active {
+		background-color: #007bff;
+		color: white;
+	}
+</style>
+</head>
+<body>
+
+	<%
+	String sql = "";
+	Connection conn = null;
+	PreparedStatement pst = null;
+	ResultSet rs = null;
+
+	int total = 0; // Total number of posts
+	int scale = 10; // Number of posts per page
+	int total_page = 0; // Total number of pages
+	int offset = 0; // DB offset
+	
+	String _page = request.getParameter("_page");
+	if (_page == null || _page.isEmpty()) {
+		_page = "1";
+	}
+	int now_page = Integer.parseInt(_page); // Current page
+
+	int page_scale = 5; // Number of page links to show
+	int page_group = (int) Math.floor((double)(now_page - 1) / page_scale);
+	int start_page = (page_group * page_scale) + 1;
+	int end_page = start_page + page_scale - 1;
+
+	try {
+		conn = DB.getConnection();
+
+		// Get total number of members
+		sql = "SELECT COUNT(*) as cnt FROM member";
+		pst = conn.prepareStatement(sql);
+		rs = pst.executeQuery();
+		if (rs.next()) {
+			total = rs.getInt("cnt");
+		}
+		
+		total_page = (int) Math.ceil((double) total / scale);
+
+		offset = (now_page - 1) * scale;
+		
+		if (end_page > total_page) {
+			end_page = total_page;
+		}
+
+		// Corrected query with LIMIT and OFFSET
+		sql = "SELECT * FROM member ORDER BY idx ASC LIMIT ? OFFSET ?";
+		pst = conn.prepareStatement(sql);
+		pst.setInt(1, scale);
+		pst.setInt(2, offset);
+		
+		rs = pst.executeQuery();
+	%>
+
+	<table border="1">
+		<tr>
+			<td>idx</td>
+			<td>id</td>
+			<td>password</td>
+			<td>name</td>
+			<td>gender</td>
+			<td>birth</td>
+			<td>hobby</td>
+		</tr>
+
+		<%
+		while (rs.next()) {
+			String idx = rs.getString("idx");
+			String id = rs.getString("id");
+			String password = rs.getString("password");
+			String name = rs.getString("name");
+			String gender = rs.getString("gender");
+			String birth = rs.getString("birth");
+			String hobby = rs.getString("hobby");
+		%>
+		<tr>
+			<td><a href="view.jsp?idx=<%=idx%>"><%=idx%></a></td>
+			<td><%=id%></td>
+			<td><%=password%></td>
+			<td><%=name%></td>
+			<td><%=gender%></td>
+			<td><%=birth%></td>
+			<td><%=hobby%></td>
+		</tr>
+		<%
+		}
+		%>
+	</table>
+	<br>
+	
+	<div class="pagination">
+		<% 
+		// "Previous" button
+		if (page_group > 0) {
+		%>
+			<a href="list.jsp?_page=<%=start_page - 1%>">Previous</a>
+		<%
+		}
+	
+		// Page numbers
+		for (int i = start_page; i <= end_page; i++) {
+		%>
+			<a href="list.jsp?_page=<%=i%>" class="<%= (now_page == i) ? "active" : "" %>"><%=i%></a>
+		<%
+		}
+	
+		// "Next" button
+		if (end_page < total_page) {
+		%>
+			<a href="list.jsp?_page=<%=end_page + 1%>">Next</a>
+		<%
+		}
+		%>
+	</div>
+
+	<%
+	} catch (Exception e) {
+		e.printStackTrace();
+		out.println("Error: " + e.getMessage());
+	} finally {
+		// Close resources in the correct order
+		if (rs != null) { try { rs.close(); } catch (SQLException e) { /* ignored */ } }
+		if (pst != null) { try { pst.close(); } catch (SQLException e) { /* ignored */ } }
+		if (conn != null) { try { conn.close(); } catch (SQLException e) { /* ignored */ } }
+	}
+	%>
+
+	<br>
+	<a href="join.jsp"><button type="button">회원가입</button></a>
+
+</body>
+</html>
